@@ -1,12 +1,16 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
-	"github.com/gorilla/mux"
 	"io/ioutil"
 	"log"
 	"net/http"
+
+	"github.com/gorilla/mux"
+
+	_ "github.com/go-sql-driver/mysql"
 )
 
 type event struct {
@@ -58,13 +62,13 @@ func updateEvent(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 }
-func deleteEvent(w http.ResponseWriter, r *http.Request){
+func deleteEvent(w http.ResponseWriter, r *http.Request) {
 	eventID := mux.Vars(r)["id"]
-	for i, singleEvent := range events{
-		if singleEvent.ID == eventID{
-		events = append(events[:i], events[i+1:]...)
-		fmt.Fprintf(w, "The event with ID %v has been deleted successfully",eventID)
-	    }
+	for i, singleEvent := range events {
+		if singleEvent.ID == eventID {
+			events = append(events[:i], events[i+1:]...)
+			fmt.Fprintf(w, "The event with ID %v has been deleted successfully", eventID)
+		}
 	}
 }
 func getOneEvent(w http.ResponseWriter, r *http.Request) {
@@ -81,7 +85,37 @@ func homeLink(q http.ResponseWriter, r *http.Request) {
 func getAllEvents(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(events)
 }
+
+//docker related commands docker run --name goMysql -p 3306:3306 -e MYSQL_ROOT_PASSWORD=reynolds6721 mysql
+
 func main() {
+	db, err1 := sql.Open("mysql", "root:reynolds6721@tcp(localhost:3306)/gorilla_api")
+
+	if err1 == nil {
+		log.Println("Not null")
+		rows, err := db.Query("select * from events;")
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var (
+				id          int
+				title       string
+				description string
+			)
+			if err := rows.Scan(&id, &title, &description); err != nil {
+				panic(err)
+			}
+			fmt.Printf("%s is %d\n", id, title)
+		}
+		err = rows.Err()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	fmt.Println("Whatsup ", db, err1)
 	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/", homeLink)
 	router.HandleFunc("/event", createEvent).Methods("POST")
