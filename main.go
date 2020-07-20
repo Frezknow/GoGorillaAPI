@@ -8,10 +8,12 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/gorilla/mux"
-
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/gorilla/mux"
 )
+
+var db *sql.DB
+var err error
 
 type event struct {
 	ID          string `json:"ID"`
@@ -20,18 +22,7 @@ type event struct {
 }
 type allEvents []event
 
-var events = allEvents{
-	{
-		ID:          "1",
-		Title:       "Introduction to Golang",
-		Description: "Come join us for chance to learn how golang works and get to eventually try it out",
-	},
-	{
-		ID:          "2",
-		Title:       "Introduction to Golang pt2",
-		Description: "Come join us for chance to learn how golang works and get to eventually try it out",
-	},
-}
+var events = allEvents{}
 
 func createEvent(w http.ResponseWriter, r *http.Request) {
 	var newEvent event
@@ -83,40 +74,33 @@ func homeLink(q http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(q, "Welcome home!")
 }
 func getAllEvents(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	result, err := db.Query("select id,title,description from events")
+	if err != nil {
+		log.Fatal("HERE2")
+	}
+	defer result.Close()
+	for result.Next() {
+		var newEvent event
+		err := result.Scan(&newEvent.ID, &newEvent.Title, &newEvent.Description)
+		if err != nil {
+			log.Fatal("HERE3")
+		}
+		events = append(events, newEvent)
+	}
 	json.NewEncoder(w).Encode(events)
 }
 
 //docker related commands docker run --name goMysql -p 3306:3306 -e MYSQL_ROOT_PASSWORD=reynolds6721 mysql
 
 func main() {
-	db, err1 := sql.Open("mysql", "root:reynolds6721@tcp(localhost:3306)/gorilla_api")
-
-	if err1 == nil {
-		log.Println("Not null")
-		rows, err := db.Query("select * from events;")
-		if err != nil {
-			log.Fatal(err)
-		}
-		defer rows.Close()
-		for rows.Next() {
-			var (
-				id          int
-				title       string
-				description string
-			)
-			if err := rows.Scan(&id, &title, &description); err != nil {
-				panic(err)
-			}
-			fmt.Printf("%s is %d\n", id, title)
-		}
-		err = rows.Err()
-		if err != nil {
-			log.Fatal(err)
-		}
+	db, err := sql.Open("mysql", "root:reynolds6721@tcp(localhost:3306)/gorilla_api")
+	if err != nil {
+		log.Fatal("HERE1")
 	}
-
-	fmt.Println("Whatsup ", db, err1)
-	router := mux.NewRouter().StrictSlash(true)
+	defer db.Close()
+	router := mux.NewRouter()
+	//.StrictSlash(true)
 	router.HandleFunc("/", homeLink)
 	router.HandleFunc("/event", createEvent).Methods("POST")
 	router.HandleFunc("/event/{id}", getOneEvent).Methods("GET")
