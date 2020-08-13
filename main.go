@@ -4,23 +4,40 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
+	"mime/multipart"
 	"net/http"
+	"os"
+	"strconv"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
+	"github.com/jinzhu/gorm"
 )
 
+type user struct {
+	ID   string `json:"ID"`
+	Name string `json:"Name"`
+}
 type event struct {
 	ID          string `json:"ID"`
 	Title       string `json:"Title"`
 	Description string `json:"Description"`
+	Comments    []comment
+}
+type comment struct {
+	ID    string `json:"ID"`
+	Body  string `json:"Body"`
+	Owner int    `json:"Owner"`
 }
 type allEvents []event
 
 var events = allEvents{}
 var db *sql.DB
+var db2 *gorm.DB
 
 func main() {
 	var err error
@@ -42,7 +59,58 @@ func main() {
 	router.HandleFunc("/event/{id}", updateEvent).Methods("PUT")
 	router.HandleFunc("/event/{id}", updateEvent).Methods("DELETE")
 	router.HandleFunc("/events", getAllEvents).Methods("GET")
+	router.HandleFunc("/comment", createComment).Methods("POST")
+	router.HandleFunc("/comment/{id}", deleteComment).Methods("DELETE")
 	log.Fatal(http.ListenAndServe(":8080", router))
+}
+
+// This is the root directory of uploaded files
+var base = "/home/mehrdadep/example"
+
+func Upload(file *multipart.FileHeader) (string, error) {
+	src, err := file.Open()
+	if err != nil {
+		return "", err
+	}
+	defer src.Close()
+	n := fmt.Sprintf("%d - %s", time.Now().UTC().Unix(), file.Filename)
+	dst := fmt.Sprintf("%s/%s", base, n)
+	out, err := os.Create(dst)
+	if err != nil {
+		return "", err
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, src)
+	return n, err
+}
+func createComment(w http.ResponseWriter, r *http.Request) {
+	//var newEvent event
+	new, err := db.Prepare("INSERT INTO comments(owner,body,event_id) VALUES(?,?,?)")
+	if err != nil {
+		panic(err.Error())
+	}
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		fmt.Fprintf(w, "Kindly enter a comment for this event.")
+	}
+	keyVal := make(map[string]string)
+	json.Unmarshal(reqBody, &keyVal)
+	body := keyVal["body"]
+	owner, err := strconv.ParseInt(keyVal["owner"], 0, 64)
+	if err != nil {
+		panic(err)
+	}
+	eventId, err := strconv.ParseInt(keyVal["event_id"], 0, 64)
+	if err != nil {
+		panic(err)
+	}
+	_, err = new.Exec(owner, body, eventId)
+	if err != nil {
+		panic(err.Error())
+	}
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode("Comment was created successfully.")
 }
 func getAllEvents(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -110,6 +178,16 @@ func deleteEvent(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 }
+
+func deleteComment(w http.ResponseWriter, r *http.Request) {
+	// commentID := mux.Vars(r)["id"]
+	// for i, singleComment := range events {
+	// 	if singleComment.ID == commentID {
+	// 		events = append(comments[:i], comments[i+1:]...)
+	// 		fmt.Fprintf(w, "The comment with ID %v has been deleted successfully", commentID)
+	// 	}
+	// }
+}
 func getOneEvent(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	eventID := mux.Vars(r)["id"]
@@ -132,6 +210,7 @@ func getOneEvent(w http.ResponseWriter, r *http.Request) {
 	// 	}
 	// }
 }
+
 func homeLink(q http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(q, "Welcome home!")
 }
