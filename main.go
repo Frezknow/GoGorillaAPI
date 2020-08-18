@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"gorilla_api/models"
 	"io"
 	"io/ioutil"
 	"log"
@@ -16,6 +17,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
+	_ "github.com/jinzhu/gorm/dialects/mysql"
 )
 
 type user struct {
@@ -23,10 +25,10 @@ type user struct {
 	Name string `json:"Name"`
 }
 type event struct {
-	ID          string `json:"ID"`
-	Title       string `json:"Title"`
-	Description string `json:"Description"`
-	Comments    []comment
+	ID          string    `json:"ID"`
+	Title       string    `json:"Title"`
+	Description string    `json:"Description"`
+	Comments    []comment `json:"comments"`
 }
 type comment struct {
 	ID    string `json:"ID"`
@@ -191,24 +193,33 @@ func deleteComment(w http.ResponseWriter, r *http.Request) {
 func getOneEvent(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	eventID := mux.Vars(r)["id"]
-	result, err := db.Query("SELECT * FROM events WHERE id = ?", eventID)
+	result, err := db.Query("SELECT * FROM events  WHERE events.id = ?", eventID)
 	if err != nil {
 		panic(err.Error())
 	}
 	defer result.Close()
-	var newEvent event
-	for result.Next() {
-		err := result.Scan(&newEvent.ID, &newEvent.Title, &newEvent.Description)
-		if err != nil {
-			panic(err.Error())
-		}
-	}
-	json.NewEncoder(w).Encode(newEvent)
-	// for _, singleEvent := range events {
-	// 	if singleEvent.ID == eventID {
-	// 		json.NewEncoder(w).Encode(singleEvent)
+	//var newEvent event
+	// for result.Next() {
+	// 	//[].Id, &newEvent.&Comments[].Body, &newEvent.Comments[].Owner
+	// 	err := result.Scan(&newEvent.ID, &newEvent.Title, &newEvent.Description))
+	// 	if err != nil {
+	// 		panic(err.Error())
 	// 	}
 	// }
+	//json.NewEncoder(w).Encode(newEvent)
+	var eventModel models.EventModel
+	events, _ := eventModel.FindAll()
+	for _, event := range events {
+		fmt.Println(event.ToString())
+		fmt.Println("Comments: ", len(event.Comments))
+		if len(event.Comments) > 0 {
+			for _, comment := range event.Comments {
+				fmt.Println(comment.ToString())
+				fmt.Println("=============================")
+			}
+		}
+		fmt.Println("--------------------")
+	}
 }
 
 func homeLink(q http.ResponseWriter, r *http.Request) {
