@@ -1,12 +1,17 @@
 package entities
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/jinzhu/gorm"
+)
 
 type Event struct {
+	gorm.Model
 	ID          int `gorm:"primary_key, AUTO_INCREMENT"`
 	Title       string
 	Description string
-	Comments    []Comment `gorm:"ForeignKey:EventID"`
+	Comments    []Comment //`gorm:"foreignKey:EventID"`
 }
 
 func (event *Event) TableName() string {

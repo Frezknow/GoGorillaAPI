@@ -208,9 +208,9 @@ func getOneEvent(w http.ResponseWriter, r *http.Request) {
 	// }
 	//json.NewEncoder(w).Encode(newEvent)
 	var eventModel models.EventModel
-	events, _ := eventModel.FindAll()
+	events, _ := eventModel.FindByID(eventID)
 	for _, event := range events {
-		fmt.Println(event.ToString())
+		fmt.Println(event.ToString(), " \nSearched for ID:", eventID)
 		fmt.Println("Comments: ", len(event.Comments))
 		if len(event.Comments) > 0 {
 			for _, comment := range event.Comments {

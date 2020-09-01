@@ -19,3 +19,15 @@ func (eventModel EventModel) FindAll() ([]entities.Event, error) {
 	}
 
 }
+func (eventModel EventModel) FindByID(id string) ([]entities.Event, error) {
+	db, err := config.GetDB()
+	if err != nil {
+		return nil, err
+	} else {
+		var events []entities.Event
+		//fmt.Println(" \nSearched for ID here:", id)
+		db.Where("id = ?", id).Preload("Comments").Find(&events)
+		db.GetErrors()
+		return events, nil
+	}
+}

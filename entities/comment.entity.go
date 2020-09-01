@@ -1,11 +1,16 @@
 package entities
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/jinzhu/gorm"
+)
 
 type Comment struct {
+	gorm.Model
 	Id      int `gorm:"primary_key, AUTO_INCREMENT"`
 	Body    string
-	EventID int `gorm:"column:event_id"`
+	EventID int `gorm:"foreignKey:event_id"`
 	Event   Event
 }
 
